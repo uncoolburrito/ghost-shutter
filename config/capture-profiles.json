@@ -1,0 +1,58 @@
+{
+  "default": {
+    "name": "Default 70D (Standard)",
+    "description": "Standard baseline matching physical Canon 70D reference",
+    "exposureTime": "1/640",
+    "fNumber": 4,
+    "iso": 100,
+    "focalLength": 70,
+    "focalLength35mm": 112,
+    "meteringMode": "Evaluative",
+    "whiteBalance": "Tungsten",
+    "flash": false,
+    "driveMode": "Single shot",
+    "liveView": false
+  },
+  "outdoor": {
+    "name": "Outdoor Daylight",
+    "description": "Bright daylight conditions with telephoto zoom",
+    "exposureTime": "1/1000",
+    "fNumber": 5.6,
+    "iso": 200,
+    "focalLength": 135,
+    "focalLength35mm": 216,
+    "meteringMode": "Evaluative",
+    "whiteBalance": "Daylight",
+    "flash": false,
+    "driveMode": "Single shot",
+    "liveView": false
+  },
+  "indoor": {
+    "name": "Indoor / Low Light",
+    "description": "Indoor ambient light with wide focal length",
+    "exposureTime": "1/160",
+    "fNumber": 4,
+    "iso": 800,
+    "focalLength": 55,
+    "focalLength35mm": 88,
+    "meteringMode": "Evaluative",
+    "whiteBalance": "Tungsten",
+    "flash": false,
+    "driveMode": "Single shot",
+    "liveView": false
+  },
+  "portrait": {
+    "name": "Portrait / Telephoto",
+    "description": "Subject isolation portrait focal length",
+    "exposureTime": "1/500",
+    "fNumber": 4.5,
+    "iso": 100,
+    "focalLength": 85,
+    "focalLength35mm": 136,
+    "meteringMode": "Evaluative",
+    "whiteBalance": "Daylight",
+    "flash": false,
+    "driveMode": "Single shot",
+    "liveView": false
+  }
+}

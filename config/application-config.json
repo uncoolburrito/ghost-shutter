@@ -1,0 +1,23 @@
+{
+  "timezone": "Asia/Kolkata",
+  "maxUploadMB": 100,
+  "defaultCaptureProfile": "default",
+  "preserveICC": true,
+  "preserveGPS": false,
+  "preserveCreator": true,
+  "defaultC2PAHandling": "remove",
+  "removeEditingSoftwareMetadata": true,
+  "addSoftwareTag": true,
+  "softwareName": "Adobe Photoshop 26.3 (Windows)",
+  "canon70dTemplate": "config/templates/canon_70d_template.jpg",
+  "photoshopApp13Template": "config/templates/photoshop_app13.bin",
+  "srgbIccTemplate": "config/templates/sRGB_IEC61966-2-1.icc",
+  "allowedMimeTypes": [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/tiff",
+    "image/heic",
+    "image/heif"
+  ]
+}

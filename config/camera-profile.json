@@ -1,0 +1,42 @@
+{
+  "make": "Canon",
+  "model": "Canon EOS 70D",
+  "firmware": "1.1.1",
+  "bodySerialNumber": "082024004039",
+  "internalSerialNumber": "FA0631074",
+  "lens": {
+    "make": "Canon",
+    "model": "Canon EF-S 55-250mm f/4-5.6 IS II",
+    "serialNumber": "0000338ce6"
+  },
+  "ownerName": "",
+  "artist": "",
+  "copyright": "",
+  "cropFactor": 1.6,
+  "defaults": {
+    "exposureTime": "1/640",
+    "fNumber": 4,
+    "iso": 100,
+    "focalLength": 70,
+    "focalLength35mm": 112,
+    "meteringMode": "Evaluative",
+    "whiteBalance": "Tungsten",
+    "colorTemperature": 3200,
+    "cameraTemperature": 31,
+    "flash": false,
+    "driveMode": "Single shot",
+    "liveView": false,
+    "minFocalLength": 55,
+    "maxFocalLength": 250,
+    "focalPlaneXResolution": 5472,
+    "focalPlaneYResolution": 3648,
+    "focalPlaneResolutionUnit": "cm"
+  },
+  "imageDefaults": {
+    "colorSpace": "sRGB",
+    "orientation": 1,
+    "resolutionX": 72,
+    "resolutionY": 72,
+    "resolutionUnit": "inches"
+  }
+}
