@@ -229,9 +229,75 @@ export function stripJpegApp11C2paMarkers(buffer: Buffer): { stripped: boolean; 
 }
 
 /**
+ * Strips C2PA chunks (caPI, c2pa, jumb, or chunks containing C2PA manifest UUID)
+ * and trailing manifest data after IEND directly from a PNG buffer without touching image pixel data.
+ */
+export function stripPngC2paChunks(buffer: Buffer): { stripped: boolean; newBuffer: Buffer } {
+  if (
+    buffer.length < 8 ||
+    buffer[0] !== 0x89 ||
+    buffer[1] !== 0x50 ||
+    buffer[2] !== 0x4e ||
+    buffer[3] !== 0x47 ||
+    buffer[4] !== 0x0d ||
+    buffer[5] !== 0x0a ||
+    buffer[6] !== 0x1a ||
+    buffer[7] !== 0x0a
+  ) {
+    return { stripped: false, newBuffer: buffer };
+  }
+
+  const chunks: Buffer[] = [buffer.subarray(0, 8)];
+  let offset = 8;
+  let modified = false;
+
+  while (offset + 8 <= buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.subarray(offset + 4, offset + 8).toString("ascii");
+    const totalChunkLength = 12 + length;
+
+    if (offset + totalChunkLength > buffer.length) {
+      // Truncated chunk; include remainder and exit
+      chunks.push(buffer.subarray(offset));
+      break;
+    }
+
+    const chunkData = buffer.subarray(offset + 8, offset + 8 + length);
+    const isC2paChunk =
+      type === "caPI" ||
+      type === "c2pa" ||
+      type === "jumb" ||
+      chunkData.includes(C2PA_UUID);
+
+    if (isC2paChunk) {
+      modified = true;
+      offset += totalChunkLength;
+      continue;
+    }
+
+    chunks.push(buffer.subarray(offset, offset + totalChunkLength));
+    offset += totalChunkLength;
+
+    if (type === "IEND") {
+      // Discard any trailing data after IEND
+      if (offset < buffer.length) {
+        modified = true;
+      }
+      break;
+    }
+  }
+
+  if (modified) {
+    return { stripped: true, newBuffer: Buffer.concat(chunks) };
+  }
+
+  return { stripped: false, newBuffer: buffer };
+}
+
+/**
  * Removes C2PA / Content Credentials from an image file safely.
  * 1. Uses ExifTool to delete JUMBF group and XMP provenance.
- * 2. Uses marker verification to ensure no residual container segments exist.
+ * 2. Uses container-level marker & chunk verification (JPEG APP11 and PNG caPI) to ensure no residual data exists.
  */
 export async function removeC2PA(filePath: string): Promise<{ success: boolean; removed: boolean }> {
   const bin = getExiftoolPath();
@@ -251,12 +317,28 @@ export async function removeC2PA(filePath: string): Promise<{ success: boolean; 
     // Non-fatal if exiftool exited with minor warning
   }
 
-  // 2. Double check buffer for any residual APP11 markers in JPEG
+  // 2. Double check buffer for any residual markers in JPEG and PNG
   try {
     const buffer = await fs.readFile(filePath);
-    const { stripped, newBuffer } = stripJpegApp11C2paMarkers(buffer);
-    if (stripped) {
-      await fs.writeFile(filePath, newBuffer);
+    let currentBuffer = buffer;
+    let modified = false;
+
+    // JPEG APP11 check
+    const jpegRes = stripJpegApp11C2paMarkers(currentBuffer);
+    if (jpegRes.stripped) {
+      currentBuffer = jpegRes.newBuffer;
+      modified = true;
+    }
+
+    // PNG chunk & trailing data check
+    const pngRes = stripPngC2paChunks(currentBuffer);
+    if (pngRes.stripped) {
+      currentBuffer = pngRes.newBuffer;
+      modified = true;
+    }
+
+    if (modified) {
+      await fs.writeFile(filePath, currentBuffer);
     }
   } catch {
     // ignore

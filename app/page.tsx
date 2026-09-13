@@ -234,8 +234,11 @@ export default function HomePage() {
 
         if (!res.ok) {
           const errData = await res.json();
+          const detail = Array.isArray(errData.validationErrors) && errData.validationErrors.length > 0
+            ? ` (${errData.validationErrors.join("; ")})`
+            : "";
           throw new Error(
-            errData.error || `Failed to process ${item.file.name} (HTTP ${res.status})`
+            (errData.error || `Failed to process ${item.file.name} (HTTP ${res.status})`) + detail
           );
         }
 

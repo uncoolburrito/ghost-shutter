@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { createJobDirectory, cleanupJobDirectory } from "@/lib/cleanup";
 import { detectFileFormat, inspectImageFile } from "@/lib/image-validator";
 import { readExifMetadata, writeExifMetadata } from "@/lib/exiftool";
-import { detectC2PA, removeC2PA, verifyC2PAAbsent } from "@/lib/c2pa-handler";
+import { detectC2PA, removeC2PA, verifyC2PAAbsent, stripPngC2paChunks } from "@/lib/c2pa-handler";
 import { buildExiftoolArgs, APP_CONFIG } from "@/lib/metadata-builder";
 import { validateOutputMetadata } from "@/lib/metadata-validator";
 import { getOutputFilename, sanitizeFilename } from "@/lib/file-naming";
@@ -104,10 +104,16 @@ export async function POST(req: NextRequest) {
     });
 
     // 6. Normalization: Output is authentic PNG exported from Photoshop
-    // If input is already PNG, preserve original lossless pixels
+    // If input is already PNG, strip C2PA chunks if needed and write to outputPath
     // If input is JPEG/WebP/TIFF, convert to lossless PNG via Sharp
     if (formatInfo.format === "PNG") {
-      await fs.copyFile(inputPath, outputPath);
+      const inputBuffer = await fs.readFile(inputPath);
+      if (c2paHandling === "remove") {
+        const { newBuffer } = stripPngC2paChunks(inputBuffer);
+        await fs.writeFile(outputPath, newBuffer);
+      } else {
+        await fs.writeFile(outputPath, inputBuffer);
+      }
     } else {
       await sharp(inputPath)
         .png({ compressionLevel: 9 })
@@ -118,7 +124,7 @@ export async function POST(req: NextRequest) {
     await writeExifMetadata(outputPath, buildResult.args);
 
     // 7b. If C2PA removal requested, ensure raw container cleanup
-    if (c2paHandling === "remove" && c2paBefore.detected) {
+    if (c2paHandling === "remove" && (c2paBefore.detected || formatInfo.format === "PNG")) {
       await removeC2PA(outputPath);
     }
 
@@ -133,6 +139,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (!validation.passed) {
+      console.error("[GhostShutter] Metadata validation failed for file:", originalName);
+      console.error("[GhostShutter] Validation errors:", validation.errors);
+      console.error(
+        "[GhostShutter] Failed checks:",
+        validation.checks.filter((c) => !c.passed)
+      );
       return NextResponse.json(
         {
           error: "The metadata was written, but validation failed. The original image was not modified.",

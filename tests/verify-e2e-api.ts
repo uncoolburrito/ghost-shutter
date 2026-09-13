@@ -12,7 +12,8 @@ async function verifyE2e() {
   const inspectForm = new FormData();
   inspectForm.append("image", new Blob([fileBytes], { type: "image/jpeg" }), "ai-c2pa-image.jpg");
 
-  const inspectRes = await fetch("http://localhost:3000/api/inspect", {
+  const port = process.env.PORT || 3001;
+  const inspectRes = await fetch(`http://localhost:${port}/api/inspect`, {
     method: "POST",
     body: inspectForm,
   });
@@ -40,7 +41,7 @@ async function verifyE2e() {
     captureDateMode: "today",
   }));
 
-  const processRes = await fetch("http://localhost:3000/api/process", {
+  const processRes = await fetch(`http://localhost:${port}/api/process`, {
     method: "POST",
     body: processForm,
   });

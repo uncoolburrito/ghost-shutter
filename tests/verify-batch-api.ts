@@ -32,7 +32,8 @@ async function verifyBatchApi() {
       })
     );
 
-    const res = await fetch("http://localhost:3000/api/process", {
+    const port = process.env.PORT || 3001;
+    const res = await fetch(`http://localhost:${port}/api/process`, {
       method: "POST",
       body: form,
     });

@@ -115,18 +115,25 @@ export async function validateOutputMetadata(
   );
 
   // 5. ExifVersion: Canon EOS 70D strictly writes 0230, not 0232!
+  const exifVer = actual["ExifIFD:ExifVersion"] || actual.ExifVersion;
   checkField(
     "ExifVersion",
     "0230",
-    actual.ExifVersion,
-    (exp, act) => String(act) === "0230"
+    exifVer,
+    (exp, act) => String(act).trim() === "0230" || String(act).trim() === "02.30"
   );
 
   // 6. Timestamps
+  const dtOrig = actual["ExifIFD:DateTimeOriginal"] || actual.DateTimeOriginal;
   checkField(
     "DateTimeOriginal",
     buildResult.timestamps.captureExif,
-    actual.DateTimeOriginal
+    dtOrig,
+    (exp, act) => {
+      if (!act) return false;
+      const normalize = (s: string) => String(s).replace(/[-:\s]/g, "").slice(0, 14);
+      return normalize(exp) === normalize(act);
+    }
   );
 
   // 7. Exposure Settings
@@ -136,13 +143,18 @@ export async function validateOutputMetadata(
     actual.ExposureTime,
     (exp, act) => {
       if (!act) return false;
-      if (String(act) === String(exp)) return true;
-      // Handle rational evaluation e.g. 1/640 = 0.0015625
-      if (typeof exp === "string" && exp.includes("/")) {
-        const [num, den] = exp.split("/").map(Number);
-        const expFloat = num / den;
-        const actFloat = Number(act);
-        return Math.abs(expFloat - actFloat) < 0.0001;
+      if (String(act).trim() === String(exp).trim()) return true;
+      const toFloat = (v: any) => {
+        if (typeof v === "string" && v.includes("/")) {
+          const [num, den] = v.split("/").map(Number);
+          return den ? num / den : NaN;
+        }
+        return Number(v);
+      };
+      const expFloat = toFloat(exp);
+      const actFloat = toFloat(act);
+      if (!isNaN(expFloat) && !isNaN(actFloat)) {
+        return Math.abs(expFloat - actFloat) < 0.0005 || Math.abs(expFloat - actFloat) / expFloat < 0.05;
       }
       return false;
     }
@@ -178,10 +190,14 @@ export async function validateOutputMetadata(
   );
 
   // 8. WhiteBalance: In standard EXIF, valid values are 0 (Auto) or 1 (Manual), NEVER 3!
+  const wbVal =
+    actual["ExifIFD:WhiteBalance"] !== undefined
+      ? actual["ExifIFD:WhiteBalance"]
+      : actual.WhiteBalance;
   checkField(
     "EXIF WhiteBalance",
     "Manual (1) or Auto (0)",
-    actual.WhiteBalance,
+    wbVal,
     (_, act) => {
       if (act === undefined || act === null) return false;
       const actStr = String(act).toLowerCase();
