@@ -97,11 +97,9 @@ export function ProcessingStatus({
       case "error":
         const isC2paFail = errorMessage && errorMessage.includes("C2PA removal could not be verified");
         return {
-          icon: <AlertCircle className="w-5 h-5 text-rose-500" />,
-          title: isC2paFail ? "⚠ C2PA Removal Failed" : "Processing Failed",
-          description: isC2paFail
-            ? "⚠ C2PA removal could not be verified. The output was not marked as successfully cleaned."
-            : (errorMessage || "An error occurred during processing. Original file unmodified."),
+          icon: <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />,
+          title: isC2paFail ? "⚠ C2PA Verification Failed" : "Processing Failed",
+          description: errorMessage || "An error occurred during processing. Original file unmodified.",
           color: "border-rose-900/50 bg-rose-950/30 text-rose-300",
         };
     }
@@ -122,7 +120,7 @@ export function ProcessingStatus({
               </span>
             )}
           </div>
-          <p className="text-xs opacity-80 mt-0.5">{current.description}</p>
+          <p className="text-xs opacity-80 mt-0.5 whitespace-pre-line">{current.description}</p>
         </div>
       </div>
 

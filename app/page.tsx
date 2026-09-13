@@ -233,9 +233,14 @@ export default function HomePage() {
         });
 
         if (!res.ok) {
-          const errData = await res.json();
+          let errData: any = {};
+          try {
+            errData = await res.json();
+          } catch {
+            errData = { error: `Server error (HTTP ${res.status})` };
+          }
           const detail = Array.isArray(errData.validationErrors) && errData.validationErrors.length > 0
-            ? ` (${errData.validationErrors.join("; ")})`
+            ? `\nValidation details: ${errData.validationErrors.join("; ")}`
             : "";
           throw new Error(
             (errData.error || `Failed to process ${item.file.name} (HTTP ${res.status})`) + detail

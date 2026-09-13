@@ -224,6 +224,8 @@ export function buildExiftoolArgs(options: BuildArgsOptions): BuildArgsResult {
     args.push("-tagsFromFile", "@", "-gps:all");
   } else if (!preserveGps) {
     args.push("-gps:all=");
+    args.push("-xmp:geotag=");
+    args.push("-xmp-exif:gps*=");
   }
 
   if (processOptions.preserveCreator && (existingMetadata.Artist || existingMetadata.Creator)) {
@@ -325,6 +327,9 @@ export function buildExiftoolArgs(options: BuildArgsOptions): BuildArgsResult {
   if (preserveGps && existingMetadata.GPSLatitude) {
     args.push("-GPS:GPSVersionID=2.3.0.0");
   } else {
+    args.push("-GPS:all=");
+    args.push("-XMP:geotag=");
+    args.push("-XMP-exif:gps*=");
     args.push("-GPS:GPSVersionID=2.3.0.0");
   }
 

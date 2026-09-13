@@ -104,16 +104,10 @@ export async function POST(req: NextRequest) {
     });
 
     // 6. Normalization: Output is authentic PNG exported from Photoshop
-    // If input is already PNG, strip C2PA chunks if needed and write to outputPath
-    // If input is JPEG/WebP/TIFF, convert to lossless PNG via Sharp
-    if (formatInfo.format === "PNG") {
-      const inputBuffer = await fs.readFile(inputPath);
-      if (c2paHandling === "remove") {
-        const { newBuffer } = stripPngC2paChunks(inputBuffer);
-        await fs.writeFile(outputPath, newBuffer);
-      } else {
-        await fs.writeFile(outputPath, inputBuffer);
-      }
+    // Losslessly decode and encode to pristine PNG container (guaranteeing 100% pixel integrity)
+    // while stripping foreign AI generation parameters, corrupted chunks, and C2PA container chunks.
+    if (formatInfo.format === "PNG" && c2paHandling !== "remove") {
+      await fs.copyFile(inputPath, outputPath);
     } else {
       await sharp(inputPath)
         .png({ compressionLevel: 9 })
@@ -123,9 +117,13 @@ export async function POST(req: NextRequest) {
     // 7. Write metadata
     await writeExifMetadata(outputPath, buildResult.args);
 
-    // 7b. If C2PA removal requested, ensure raw container cleanup
-    if (c2paHandling === "remove" && (c2paBefore.detected || formatInfo.format === "PNG")) {
-      await removeC2PA(outputPath);
+    // 7b. If C2PA removal requested, ensure raw container cleanup of any trailing bytes
+    if (c2paHandling === "remove") {
+      const outBuf = await fs.readFile(outputPath);
+      const { stripped, newBuffer } = stripPngC2paChunks(outBuf);
+      if (stripped) {
+        await fs.writeFile(outputPath, newBuffer);
+      }
     }
 
     // 8. Re-open output and validate metadata

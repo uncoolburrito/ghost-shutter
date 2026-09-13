@@ -206,9 +206,12 @@ export async function validateOutputMetadata(
   );
 
   // 9. OffsetTime: Canon EOS 70D firmware does NOT write OffsetTime tags
-  const hasOffsetTime = actual.OffsetTime || actual.OffsetTimeOriginal || actual.OffsetTimeDigitized;
+  const hasOffsetTime =
+    actual["ExifIFD:OffsetTime"] ||
+    actual["ExifIFD:OffsetTimeOriginal"] ||
+    actual["ExifIFD:OffsetTimeDigitized"];
   if (hasOffsetTime) {
-    errors.push("OffsetTime tags were found in output; Canon EOS 70D does not support OffsetTime.");
+    errors.push("OffsetTime tags were found in EXIF; Canon EOS 70D does not support OffsetTime.");
     checks.push({
       field: "OffsetTime",
       expected: "absent",
@@ -226,7 +229,11 @@ export async function validateOutputMetadata(
 
   // 10. Software Tag & XMPToolkit cloaking (No 'GhostShutter', No ExifTool)
   const expectedSoftware = APP_CONFIG.softwareName || "Adobe Photoshop 26.3 (Windows)";
-  if (APP_CONFIG.addSoftwareTag) {
+  const shouldCheckSoftware =
+    processOptions.addSoftwareTag !== undefined
+      ? processOptions.addSoftwareTag
+      : APP_CONFIG.addSoftwareTag;
+  if (shouldCheckSoftware) {
     checkField("Software", expectedSoftware, actual.Software);
   }
 

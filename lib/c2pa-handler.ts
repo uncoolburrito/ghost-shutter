@@ -19,42 +19,105 @@ function scanBufferForC2paSignatures(buffer: Buffer): {
   detected: boolean;
   format?: "JPEG_APP11" | "PNG_CAPI" | "WEBP_JUMB" | "RAW_UUID";
 } {
-  // 1. JPEG APP11 check (0xFF 0xEB followed by JUMBF header or 'JP' identifier)
-  for (let i = 0; i < buffer.length - 10; i++) {
-    if (buffer[i] === 0xff && buffer[i + 1] === 0xeb) {
-      // APP11 segment length (2 bytes)
-      const segLen = buffer.readUInt16BE(i + 2);
-      if (segLen > 4 && i + 2 + segLen <= buffer.length) {
-        const segSlice = buffer.subarray(i + 4, i + 2 + segLen);
-        if (
-          segSlice.includes(C2PA_UUID) ||
-          segSlice.includes(Buffer.from("c2pa", "utf8")) ||
-          segSlice.includes(Buffer.from("jumb", "utf8")) ||
-          (segSlice[0] === 0x4a && segSlice[1] === 0x50) // 'JP'
-        ) {
-          return { detected: true, format: "JPEG_APP11" };
+  if (buffer.length < 12) {
+    return { detected: false };
+  }
+
+  // 1. PNG structural chunk check (PNG signature: 89 50 4E 47 0D 0A 1A 0A)
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    let offset = 8;
+    while (offset + 8 <= buffer.length) {
+      const length = buffer.readUInt32BE(offset);
+      const type = buffer.subarray(offset + 4, offset + 8).toString("ascii");
+      const totalChunkLength = 12 + length;
+
+      if (type === "caPI" || type === "c2pa" || type === "jumb") {
+        return { detected: true, format: "PNG_CAPI" };
+      }
+
+      if (type !== "IDAT" && offset + totalChunkLength <= buffer.length) {
+        const chunkData = buffer.subarray(offset + 8, offset + 8 + length);
+        if (chunkData.includes(C2PA_UUID)) {
+          return { detected: true, format: "PNG_CAPI" };
         }
       }
+
+      offset += totalChunkLength;
+      if (type === "IEND") {
+        if (offset < buffer.length) {
+          return { detected: true, format: "PNG_CAPI" };
+        }
+        break;
+      }
     }
+    return { detected: false };
   }
 
-  // 2. PNG caPI / c2pa chunk check
-  for (let i = 0; i < buffer.length - 8; i++) {
-    const chunkName = buffer.subarray(i + 4, i + 8).toString("ascii");
-    if (chunkName === "caPI" || chunkName === "c2pa" || chunkName === "jumb") {
-      return { detected: true, format: "PNG_CAPI" };
+  // 2. JPEG structural marker check (SOI: 0xFF 0xD8)
+  if (buffer[0] === 0xff && buffer[1] === 0xd8) {
+    let i = 2;
+    while (i + 4 <= buffer.length) {
+      if (buffer[i] === 0xff) {
+        const marker = buffer[i + 1];
+        // Stop scanning at Start of Scan (0xFF 0xDA) or End of Image (0xFF 0xD9)
+        if (marker === 0xda || marker === 0xd9) {
+          break;
+        }
+        // Standalone markers with no length payload
+        if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01) {
+          i += 2;
+          continue;
+        }
+
+        const segLen = buffer.readUInt16BE(i + 2);
+        if (segLen < 2) break;
+
+        if (marker === 0xeb) { // APP11
+          const segSlice = buffer.subarray(i + 4, Math.min(buffer.length, i + 2 + segLen));
+          if (
+            segSlice.includes(C2PA_UUID) ||
+            segSlice.includes(Buffer.from("c2pa", "utf8")) ||
+            segSlice.includes(Buffer.from("jumb", "utf8")) ||
+            (segSlice[0] === 0x4a && segSlice[1] === 0x50) // 'JP'
+          ) {
+            return { detected: true, format: "JPEG_APP11" };
+          }
+        }
+        i += 2 + segLen;
+      } else {
+        i++;
+      }
     }
+    return { detected: false };
   }
 
-  // 3. WebP JUMB RIFF chunk
-  for (let i = 0; i < buffer.length - 8; i++) {
-    const fourCC = buffer.subarray(i, i + 4).toString("ascii");
-    if (fourCC === "JUMB" || fourCC === "C2PA") {
-      return { detected: true, format: "WEBP_JUMB" };
+  // 3. WebP structural RIFF chunk check
+  if (
+    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
+    buffer.subarray(8, 12).toString("ascii") === "WEBP"
+  ) {
+    let offset = 12;
+    while (offset + 8 <= buffer.length) {
+      const fourCC = buffer.subarray(offset, offset + 4).toString("ascii");
+      const chunkSize = buffer.readUInt32LE(offset + 4);
+      if (fourCC === "JUMB" || fourCC === "C2PA") {
+        return { detected: true, format: "WEBP_JUMB" };
+      }
+      offset += 8 + chunkSize + (chunkSize % 2);
     }
+    return { detected: false };
   }
 
-  // 4. Raw UUID check in non-standard locations
+  // 4. Raw UUID fallback check
   if (buffer.includes(C2PA_UUID)) {
     return { detected: true, format: "RAW_UUID" };
   }
@@ -262,12 +325,14 @@ export function stripPngC2paChunks(buffer: Buffer): { stripped: boolean; newBuff
       break;
     }
 
+    const isCriticalChunk = type === "IHDR" || type === "PLTE" || type === "IDAT" || type === "IEND";
     const chunkData = buffer.subarray(offset + 8, offset + 8 + length);
     const isC2paChunk =
-      type === "caPI" ||
-      type === "c2pa" ||
-      type === "jumb" ||
-      chunkData.includes(C2PA_UUID);
+      !isCriticalChunk &&
+      (type === "caPI" ||
+        type === "c2pa" ||
+        type === "jumb" ||
+        chunkData.includes(C2PA_UUID));
 
     if (isC2paChunk) {
       modified = true;
@@ -308,7 +373,6 @@ export async function removeC2PA(filePath: string): Promise<{ success: boolean; 
       "-overwrite_original",
       "-jumbf:all=",
       "-XMP-c2pa:all=",
-      "-XMP-xmpMM:History=",
       "-XMP-xmpMM:Ingredients=",
       "-XMP-x:XMPToolkit=Adobe XMP Core 9.1-c002 79.a6444e2, 2024/10/28-01:45:00",
       filePath,
