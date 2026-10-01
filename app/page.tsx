@@ -24,6 +24,7 @@ import { calculateBatchTimestamps } from "@/lib/batch-timing";
 export default function HomePage() {
   const [items, setItems] = useState<DropzoneItem[]>([]);
   const [options, setOptions] = useState<ProcessOptions>({
+    outputFormat: "jpeg",
     metadataStrategy: "clean_and_apply",
     captureDateMode: "today",
     captureTimeMode: "current",
@@ -187,8 +188,9 @@ export default function HomePage() {
     );
 
     // 2. Calculate filenames
+    const outFormat = options.outputFormat || "jpeg";
     const startFrame = options.batchStartFrame || 4819;
-    const canonNames = generateCanonSequence(startFrame, count);
+    const canonNames = generateCanonSequence(startFrame, count, outFormat);
 
     const results: BatchResultItem[] = [];
 
@@ -204,10 +206,10 @@ export default function HomePage() {
           if (options.batchNamingPattern === "canon_sequence") {
             targetFilename = canonNames[i];
           } else {
-            targetFilename = getOutputFilename(item.file.name);
+            targetFilename = getOutputFilename(item.file.name, undefined, outFormat);
           }
         } else {
-          targetFilename = options.customOutputFilename || getOutputFilename(item.file.name);
+          targetFilename = options.customOutputFilename || getOutputFilename(item.file.name, undefined, outFormat);
         }
 
         const itemTimestamp = timestamps[i] || timestamps[0];

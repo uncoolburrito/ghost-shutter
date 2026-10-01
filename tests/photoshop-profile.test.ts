@@ -32,12 +32,12 @@ describe("Authentic Canon EOS 70D + Adobe Photoshop Profile Verification", () =>
       const inputFormat = await detectFileFormat(pngInputPath);
       expect(inputFormat.format).toBe("PNG");
 
-      // Verify filename helper outputs .png preserving original basename (Photoshop default)
-      const finalFilename = getOutputFilename("my_real_photo.png");
+      // Verify filename helper outputs .png when format is png
+      const finalFilename = getOutputFilename("my_real_photo.png", undefined, "png");
       expect(finalFilename).toBe("my_real_photo.png");
 
       // Verify custom filename override
-      const customFilename = getOutputFilename("my_real_photo.png", "IMG_6442");
+      const customFilename = getOutputFilename("my_real_photo.png", "IMG_6442", "png");
       expect(customFilename).toBe("IMG_6442.png");
 
       // 2. Normalization: Output is authentic PNG exported from Photoshop

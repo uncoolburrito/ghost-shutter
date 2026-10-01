@@ -345,36 +345,53 @@ export function buildExiftoolArgs(options: BuildArgsOptions): BuildArgsResult {
   const iptcDate = capDate;
   const iptcTime = capTime;
 
+  const isJpeg = format.toUpperCase() === "JPEG" || format.toUpperCase() === "JPG";
+  const mimeType = isJpeg ? "image/jpeg" : "image/png";
+
   args.push(`-XMP-xmp:CreatorTool=${softwareName}`);
   args.push(`-XMP-xmp:CreateDate=${isoCaptureDate}`);
   args.push(`-XMP-xmp:ModifyDate=${timestamps.modifyXmp}`);
   args.push(`-XMP-xmp:MetadataDate=${timestamps.modifyXmp}`);
-  args.push(`-XMP-dc:format=image/png`);
+  args.push(`-XMP-dc:format=${mimeType}`);
   args.push(`-XMP-photoshop:ColorMode#=3`); // RGB
   args.push(`-XMP-photoshop:ICCProfileName=sRGB IEC61966-2.1`);
   args.push(`-XMP-photoshop:DateCreated=${isoCaptureDate}`);
   args.push(`-XMP-xmpMM:DocumentID=${docId}`);
   args.push(`-XMP-xmpMM:OriginalDocumentID=${origDocId}`);
 
-  // Authentic 3-step Photoshop format conversion history (captured as JPEG, edited & converted to PNG)
-  // Step 1: Initial edit & save in Photoshop
-  args.push(`-XMP-xmpMM:HistoryAction=saved`);
-  args.push(`-XMP-xmpMM:HistoryInstanceID=${xmpInstanceId1}`);
-  args.push(`-XMP-xmpMM:HistoryWhen=${isoCaptureDate}`);
-  args.push(`-XMP-xmpMM:HistorySoftwareAgent=${softwareName}`);
-  args.push(`-XMP-xmpMM:HistoryChanged=/`);
+  if (!isJpeg) {
+    // Authentic 3-step Photoshop format conversion history (captured as JPEG, edited & converted to PNG)
+    // Step 1: Initial edit & save in Photoshop
+    args.push(`-XMP-xmpMM:HistoryAction=saved`);
+    args.push(`-XMP-xmpMM:HistoryInstanceID=${xmpInstanceId1}`);
+    args.push(`-XMP-xmpMM:HistoryWhen=${isoCaptureDate}`);
+    args.push(`-XMP-xmpMM:HistorySoftwareAgent=${softwareName}`);
+    args.push(`-XMP-xmpMM:HistoryChanged=/`);
 
-  // Step 2: Format conversion in Photoshop (from image/jpeg to image/png)
-  args.push(`-XMP-xmpMM:HistoryAction=converted`);
-  args.push(`-XMP-xmpMM:HistoryParameters=from image/jpeg to image/png`);
+    // Step 2: Format conversion in Photoshop (from image/jpeg to image/png)
+    args.push(`-XMP-xmpMM:HistoryAction=converted`);
+    args.push(`-XMP-xmpMM:HistoryParameters=from image/jpeg to image/png`);
 
-  // Step 3: Final save as PNG in Photoshop
-  args.push(`-XMP-xmpMM:HistoryAction=saved`);
-  args.push(`-XMP-xmpMM:HistoryInstanceID=${xmpInstanceId2}`);
-  args.push(`-XMP-xmpMM:HistoryWhen=${timestamps.modifyXmp}`);
-  args.push(`-XMP-xmpMM:HistorySoftwareAgent=${softwareName}`);
-  args.push(`-XMP-xmpMM:HistoryChanged=/`);
-  args.push(`-icc_profile<=${iccPath}`);
+    // Step 3: Final save as PNG in Photoshop
+    args.push(`-XMP-xmpMM:HistoryAction=saved`);
+    args.push(`-XMP-xmpMM:HistoryInstanceID=${xmpInstanceId2}`);
+    args.push(`-XMP-xmpMM:HistoryWhen=${timestamps.modifyXmp}`);
+    args.push(`-XMP-xmpMM:HistorySoftwareAgent=${softwareName}`);
+    args.push(`-XMP-xmpMM:HistoryChanged=/`);
+  } else {
+    // Authentic Photoshop edit & save history for camera JPEG
+    args.push(`-XMP-xmpMM:HistoryAction=saved`);
+    args.push(`-XMP-xmpMM:HistoryInstanceID=${xmpInstanceId1}`);
+    args.push(`-XMP-xmpMM:HistoryWhen=${isoCaptureDate}`);
+    args.push(`-XMP-xmpMM:HistorySoftwareAgent=${softwareName}`);
+    args.push(`-XMP-xmpMM:HistoryChanged=/`);
+
+    args.push(`-XMP-xmpMM:HistoryAction=saved`);
+    args.push(`-XMP-xmpMM:HistoryInstanceID=${xmpInstanceId2}`);
+    args.push(`-XMP-xmpMM:HistoryWhen=${timestamps.modifyXmp}`);
+    args.push(`-XMP-xmpMM:HistorySoftwareAgent=${softwareName}`);
+    args.push(`-XMP-xmpMM:HistoryChanged=/`);
+  }
 
   // Cloak ExifTool in XMPToolkit with authentic Adobe XMP Core signature
   args.push(`-XMP-x:XMPToolkit=Adobe XMP Core 9.1-c002 79.a6444e2, 2024/10/28-01:45:00`);

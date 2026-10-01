@@ -8,16 +8,15 @@ A privacy-focused, local-first web application designed to remove AI provenance 
 
 * **C2PA / Content Credentials Removal**: Detects and cleanly strips C2PA manifests (provenance data attached by AI editing and color-grading tools) without injecting any replacement credentials.
 * **Authentic Canon EOS 70D Profile**: Injects ~278 genuine Canon MakerNote tags, internal body serial number (`FA0631074`), internal temperature sensor readings (`31 °C`), AF point structures, sensor calibration matrices, and lens type definitions (Canon EF-S 55-250mm f/4-5.6 IS II).
-* **Photoshop 26.3 Format Conversion Lineage**: Writes an authentic 3-stage Adobe Photoshop XMP history record:
-  1. `saved` as `image/jpeg`
-  2. `converted` with parameters `from image/jpeg to image/png`
-  3. `saved` as `image/png`
-* **Color Space Fidelity**: Injects the genuine Hewlett-Packard `sRGB IEC61966-2.1` ICC profile directly into the standard PNG `iCCP` chunk.
-* **Lossless PNG Output**: Converts and preserves pristine pixel integrity (`compressionLevel: 9`) with zero re-compression degradation.
+* **Dual Format Support (JPEG Default & PNG Option)**:
+  * **JPEG / JPG (Default)**: Authentic Canon EOS 70D camera native format. Preserves original JPEG streams with **zero recompression generational loss**; converts foreign inputs at 100% maximum quality with 4:4:4 chroma subsampling.
+  * **PNG (Optional)**: Lossless Photoshop export format (`compressionLevel: 9`) with full conversion lineage (`saved as JPEG → converted to PNG`).
+* **Photoshop 26.3 Lineage**: Writes authentic Adobe Photoshop XMP history records for both native camera JPEG saves and JPEG-to-PNG export workflows.
+* **Color Space Fidelity**: Injects the genuine Hewlett-Packard `sRGB IEC61966-2.1` ICC profile directly into standard color profile segments (`iCCP` in PNG, APP2 in JPEG).
 * **Multi-Image Batch Processing**:
-  * Drag-and-drop 6–7+ photos simultaneously.
-  * Professional single-frame shoot timing with organic jitter (±2–4s variance per shot) to prevent robotic, identical capture timestamps.
-  * Continuous Canon DSLR sequence numbering (`IMG_XXXX.png` with persistent memory across sessions).
+  * Drag-and-drop multiple photos simultaneously.
+  * Natural single-frame shoot timing with organic jitter (±2–4s variance per shot) to prevent robotic, identical capture timestamps.
+  * Continuous Canon DSLR sequence numbering (`IMG_XXXX.jpg` or `IMG_XXXX.png` with persistent memory across sessions).
   * Non-throttled sequential downloads (no ZIP extraction required).
 * **Privacy & Security**:
   * 100% offline local processing — no external API calls, tracking, or cloud uploads.

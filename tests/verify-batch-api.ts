@@ -51,7 +51,7 @@ async function verifyBatchApi() {
 
     // Save ephemeral and inspect with ExifTool
     const outputBuffer = Buffer.from(await res.arrayBuffer());
-    const tempOut = path.join(__dirname, "fixtures", `temp_batch_out_${i + 1}.png`);
+    const tempOut = path.join(__dirname, "fixtures", `temp_batch_out_${i + 1}.jpg`);
     await fs.writeFile(tempOut, outputBuffer);
 
     const meta = await readExifMetadata(tempOut);

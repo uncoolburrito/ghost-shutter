@@ -205,8 +205,11 @@ describe("Image Processing & Robustness (Section 60 Tests)", () => {
     expect(sanitized).not.toContain("$");
 
     const outName = getOutputFilename(dangerousName);
-    expect(outName.endsWith(".png")).toBe(true);
+    expect(outName.endsWith(".jpg")).toBe(true);
     expect(outName).not.toContain("_metadata");
+
+    const outNamePng = getOutputFilename(dangerousName, undefined, "png");
+    expect(outNamePng.endsWith(".png")).toBe(true);
   });
 
   // Test 10: Image with existing AI/software metadata

@@ -31,6 +31,7 @@ async function main() {
   form.append(
     "options",
     JSON.stringify({
+      outputFormat: "png",
       captureDateMode: "custom",
       customDate: "2026-07-09",
       captureTimeMode: "custom",

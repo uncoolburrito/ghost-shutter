@@ -22,21 +22,28 @@ export function sanitizeFilename(rawFilename: string): string {
  * Generates an authentic Canon EOS DSLR default camera filename.
  * Canon EOS bodies name images in the standard format: "IMG_XXXX.jpg" (e.g. "IMG_6442.jpg").
  */
-export function generateCanonCameraFilename(counter?: number): string {
+export function generateCanonCameraFilename(
+  counter?: number,
+  format: "jpeg" | "png" = "jpeg"
+): string {
   if (counter !== undefined && counter > 0) {
-    return formatCanonFrame(counter);
+    return formatCanonFrame(counter, format);
   }
   // If not provided, generate a plausible Canon 70D frame number between 1000 and 9999
-  return formatCanonFrame(getRandomCanonFrame());
+  return formatCanonFrame(getRandomCanonFrame(), format);
 }
 
 /**
- * Formats a frame number into standard Canon 4-digit format: IMG_XXXX.png
+ * Formats a frame number into standard Canon 4-digit format: IMG_XXXX.jpg (or IMG_XXXX.png)
  * Handles rollover at 9999 -> 0001.
  */
-export function formatCanonFrame(frame: number): string {
+export function formatCanonFrame(
+  frame: number,
+  format: "jpeg" | "png" = "jpeg"
+): string {
+  const ext = format === "png" ? "png" : "jpg";
   const normalized = ((Math.max(1, frame) - 1) % 9999) + 1;
-  return `IMG_${String(normalized).padStart(4, "0")}.png`;
+  return `IMG_${String(normalized).padStart(4, "0")}.${ext}`;
 }
 
 /**
@@ -49,39 +56,45 @@ export function getRandomCanonFrame(): number {
 /**
  * Generates a sequence of Canon filenames starting at startFrame.
  */
-export function generateCanonSequence(startFrame: number, count: number): string[] {
+export function generateCanonSequence(
+  startFrame: number,
+  count: number,
+  format: "jpeg" | "png" = "jpeg"
+): string[] {
   const result: string[] = [];
   for (let i = 0; i < count; i++) {
-    result.push(formatCanonFrame(startFrame + i));
+    result.push(formatCanonFrame(startFrame + i, format));
   }
   return result;
 }
 
 /**
- * Generates an output filename matching Adobe Photoshop PNG Export behavior:
- * 1. If a custom filename is provided by the user, sanitizes and uses it (enforcing lowercase .png).
- * 2. Default: Photoshop preserves the original base name and applies lowercase .png.
- * 3. Enforces lowercase ".png" extension.
+ * Generates an output filename matching selected format (JPEG default, PNG optional):
+ * 1. If a custom filename is provided by the user, sanitizes and uses it with target extension.
+ * 2. Default: Preserves the original base name and applies target extension (.jpg or .png).
  *
- * Examples:
- *   "IMG_6442.JPG" -> "IMG_6442.png"
- *   "portrait_sunset.jpg" -> "portrait_sunset.png"
- *   "portrait_sunset.png" with custom "IMG_6442" -> "IMG_6442.png"
+ * Examples (format = "jpeg"):
+ *   "IMG_6442.PNG" -> "IMG_6442.jpg"
+ *   "portrait_sunset.png" -> "portrait_sunset.jpg"
+ *   "portrait_sunset.png" with custom "IMG_6442" -> "IMG_6442.jpg"
  */
 export function getOutputFilename(
   inputFilename: string,
-  customOrTargetName?: string
+  customOrTargetName?: string,
+  format: "jpeg" | "png" = "jpeg"
 ): string {
-  // If a custom filename is provided (and it's not just a file extension like ".png")
+  const ext = format === "png" ? "png" : "jpg";
+
+  // If a custom filename is provided (and it's not just a file extension like ".jpg")
   if (customOrTargetName && !customOrTargetName.startsWith(".")) {
     const customSanitized = sanitizeFilename(customOrTargetName);
     const customBase = path.basename(customSanitized, path.extname(customSanitized));
-    return `${customBase || "image"}.png`;
+    return `${customBase || "image"}.${ext}`;
   }
 
   const sanitized = sanitizeFilename(inputFilename);
   const nameWithoutExt = path.basename(sanitized, path.extname(sanitized));
 
-  return `${nameWithoutExt || "image"}.png`;
+  return `${nameWithoutExt || "image"}.${ext}`;
 }
 

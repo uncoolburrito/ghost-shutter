@@ -48,8 +48,19 @@ describe("Batch Timing & Realism", () => {
 });
 
 describe("Canon Sequence Generation", () => {
-  it("generates sequential Canon frame filenames", () => {
+  it("generates sequential Canon frame filenames (default JPEG)", () => {
     const sequence = generateCanonSequence(4820, 5);
+    expect(sequence).toEqual([
+      "IMG_4820.jpg",
+      "IMG_4821.jpg",
+      "IMG_4822.jpg",
+      "IMG_4823.jpg",
+      "IMG_4824.jpg",
+    ]);
+  });
+
+  it("generates sequential Canon frame filenames when PNG option is selected", () => {
+    const sequence = generateCanonSequence(4820, 5, "png");
     expect(sequence).toEqual([
       "IMG_4820.png",
       "IMG_4821.png",
@@ -59,9 +70,13 @@ describe("Canon Sequence Generation", () => {
     ]);
   });
 
-  it("handles rollover at 9999 to 0001", () => {
-    expect(formatCanonFrame(9999)).toBe("IMG_9999.png");
-    expect(formatCanonFrame(10000)).toBe("IMG_0001.png");
-    expect(formatCanonFrame(10001)).toBe("IMG_0002.png");
+  it("handles rollover at 9999 to 0001 for both JPEG and PNG", () => {
+    expect(formatCanonFrame(9999)).toBe("IMG_9999.jpg");
+    expect(formatCanonFrame(10000)).toBe("IMG_0001.jpg");
+    expect(formatCanonFrame(10001)).toBe("IMG_0002.jpg");
+
+    expect(formatCanonFrame(9999, "png")).toBe("IMG_9999.png");
+    expect(formatCanonFrame(10000, "png")).toBe("IMG_0001.png");
+    expect(formatCanonFrame(10001, "png")).toBe("IMG_0002.png");
   });
 });

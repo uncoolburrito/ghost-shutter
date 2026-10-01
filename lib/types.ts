@@ -116,8 +116,10 @@ export interface InspectResult {
 }
 
 export type MetadataStrategy = "clean_and_apply" | "replace_camera" | "merge";
+export type OutputFormat = "jpeg" | "png";
 
 export interface ProcessOptions {
+  outputFormat?: OutputFormat;
   captureDateMode?: "today" | "custom";
   customDate?: string; // YYYY-MM-DD
   captureTimeMode?: "current" | "custom";

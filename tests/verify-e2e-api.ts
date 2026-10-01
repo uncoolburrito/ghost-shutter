@@ -70,7 +70,7 @@ async function verifyE2e() {
 
   // 3. Save output and independently verify C2PA is absent
   const outputBuffer = Buffer.from(await processRes.arrayBuffer());
-  const tempOut = path.join(__dirname, "fixtures", "e2e_verified_output.png");
+  const tempOut = path.join(__dirname, "fixtures", "e2e_verified_output.jpg");
   await fs.writeFile(tempOut, outputBuffer);
 
   const verify = await verifyC2PAAbsent(tempOut);

@@ -333,12 +333,15 @@ export async function validateOutputMetadata(
   const passed = errors.length === 0;
 
   // Build Visual Metadata Diff
+  const isOutputPng = format.toUpperCase() === "PNG";
   const diff: MetadataDiffItem[] = [
     {
       field: "Format & Lineage",
       status: "modified",
       before: beforeMetadata.Format || beforeMetadata.MIMEType || format,
-      after: "PNG (image/png) • Converted in Photoshop from Canon JPEG",
+      after: isOutputPng
+        ? "PNG (image/png) • Converted in Photoshop from Canon JPEG"
+        : "JPEG (image/jpeg) • Canon EOS 70D Camera Native (Photoshop 26.3)",
     },
     {
       field: "Camera",

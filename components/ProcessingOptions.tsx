@@ -15,6 +15,7 @@ import {
   ArrowRight,
   FileEdit,
   Camera,
+  Layers,
 } from "lucide-react";
 import { ProcessOptions, InspectResult } from "@/lib/types";
 import { CAPTURE_PROFILES } from "@/lib/metadata-builder";
@@ -58,19 +59,22 @@ export function ProcessingOptions({
 }: ProcessingOptionsProps) {
   const isCustom = options.captureDateMode === "custom" || options.captureTimeMode === "custom";
 
-  // Original uploaded file name preserved with .png
-  const originalUploadedFilename = useMemo(() => {
-    return getOutputFilename(fileName || "image.png");
-  }, [fileName]);
+  const outputFormat = options.outputFormat || "jpeg";
+  const outputExt = outputFormat === "png" ? "png" : "jpg";
 
-  // Authentic Canon camera frame default (e.g. IMG_6442.png) so every processed image looks like it was captured on a camera by default
+  // Original uploaded file name preserved with current output format extension
+  const originalUploadedFilename = useMemo(() => {
+    return getOutputFilename(fileName || `image.${outputExt}`, undefined, outputFormat);
+  }, [fileName, outputFormat, outputExt]);
+
+  // Authentic Canon camera frame default (e.g. IMG_6442.jpg)
   const defaultCanonFilename = useMemo(() => {
     const base = fileName ? fileName.replace(/\.[^/.]+$/, "") : "image";
     if (/^IMG_\d{4}$/i.test(base)) {
-      return `${base.toUpperCase()}.png`;
+      return `${base.toUpperCase()}.${outputExt}`;
     }
-    return generateCanonCameraFilename();
-  }, [fileName]);
+    return generateCanonCameraFilename(undefined, outputFormat);
+  }, [fileName, outputFormat, outputExt]);
 
   // Pre-initialize custom values if switching to custom so user never sees empty fields
   const activeDate = options.customDate || getLocalDateString();
@@ -80,8 +84,8 @@ export function ProcessingOptions({
   const currentStartFrame = options.batchStartFrame || 4819;
   const batchSequenceNames = useMemo(() => {
     if (itemCount <= 1) return [];
-    return generateCanonSequence(currentStartFrame, itemCount);
-  }, [currentStartFrame, itemCount]);
+    return generateCanonSequence(currentStartFrame, itemCount, outputFormat);
+  }, [currentStartFrame, itemCount, outputFormat]);
 
   // Batch timestamp progression
   const batchTimestamps = useMemo(() => {
@@ -343,6 +347,90 @@ export function ProcessingOptions({
         </div>
       </div>
 
+      {/* Output Format Selection */}
+      <div className="space-y-2 p-4 rounded-xl bg-slate-950/40 border border-slate-800/80">
+        <div className="flex items-center justify-between">
+          <label className="text-slate-200 font-semibold flex items-center gap-1.5 text-sm">
+            <Layers className="w-4 h-4 text-red-500" />
+            Output Format
+          </label>
+          <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Lossless / Zero Quality Loss
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {/* JPEG option (Default) */}
+          <label
+            className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+              (options.outputFormat || "jpeg") === "jpeg"
+                ? "bg-red-950/40 border-red-500 text-red-100 ring-1 ring-red-500/30"
+                : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <input
+              type="radio"
+              name="outputFormat"
+              checked={(options.outputFormat || "jpeg") === "jpeg"}
+              onChange={() => {
+                updateOption("outputFormat", "jpeg");
+                if (options.customOutputFilename) {
+                  const base = options.customOutputFilename.replace(/\.[^/.]+$/, "");
+                  updateOption("customOutputFilename", `${base}.jpg`);
+                }
+              }}
+              className="mt-1 text-red-600 focus:ring-0"
+            />
+            <div className="space-y-1">
+              <div className="font-semibold text-xs flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded bg-red-900/60 border border-red-700/60 text-[10px] text-red-200 font-mono">
+                  JPEG / JPG
+                </span>
+                <span>Camera Native (Default)</span>
+              </div>
+              <p className="text-[11px] opacity-80 leading-relaxed">
+                Authentic Canon EOS 70D output. 100% maximum quality, 4:4:4 chroma subsampling, zero recompression generational loss on JPEG inputs.
+              </p>
+            </div>
+          </label>
+
+          {/* PNG option */}
+          <label
+            className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+              options.outputFormat === "png"
+                ? "bg-red-950/40 border-red-500 text-red-100 ring-1 ring-red-500/30"
+                : "bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <input
+              type="radio"
+              name="outputFormat"
+              checked={options.outputFormat === "png"}
+              onChange={() => {
+                updateOption("outputFormat", "png");
+                if (options.customOutputFilename) {
+                  const base = options.customOutputFilename.replace(/\.[^/.]+$/, "");
+                  updateOption("customOutputFilename", `${base}.png`);
+                }
+              }}
+              className="mt-1 text-red-600 focus:ring-0"
+            />
+            <div className="space-y-1">
+              <div className="font-semibold text-xs flex items-center gap-1.5">
+                <span className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] text-slate-300 font-mono">
+                  PNG
+                </span>
+                <span>Photoshop Lossless Export</span>
+              </div>
+              <p className="text-[11px] opacity-80 leading-relaxed">
+                Lossless RGBA/PNG container with full Photoshop edit history (&ldquo;saved as JPEG &rarr; converted to PNG&rdquo;).
+              </p>
+            </div>
+          </label>
+        </div>
+      </div>
+
       {/* Output File Name (Single vs Batch) */}
       {itemCount > 1 ? (
         <div className="space-y-3 p-4 rounded-xl bg-slate-950/40 border border-slate-800/80">
@@ -351,8 +439,8 @@ export function ProcessingOptions({
               <FileEdit className="w-3.5 h-3.5 text-red-500" />
               Batch File Naming ({itemCount} Images)
             </label>
-            <span className="text-[11px] text-slate-400">
-              Photoshop / Canon DSLR naming
+            <span className="text-[11px] text-slate-400 font-mono">
+              *.{outputExt}
             </span>
           </div>
 
@@ -374,10 +462,10 @@ export function ProcessingOptions({
               <div>
                 <div className="font-semibold text-xs flex items-center gap-1.5">
                   <FileEdit className="w-3.5 h-3.5 text-slate-400" />
-                  Photoshop Default
+                  Original Base Name
                 </div>
                 <div className="text-[11px] opacity-80 mt-0.5">
-                  Retains each image's base name with lowercase .png
+                  Retains each image&apos;s base name with lowercase .{outputExt}
                 </div>
               </div>
             </label>
@@ -402,7 +490,7 @@ export function ProcessingOptions({
                   Canon Sequence (Continuous)
                 </div>
                 <div className="text-[11px] opacity-80 mt-0.5">
-                  Sequential DSLR frame numbering (IMG_XXXX.png)
+                  Sequential DSLR frame numbering (IMG_XXXX.{outputExt})
                 </div>
               </div>
             </label>
@@ -457,8 +545,8 @@ export function ProcessingOptions({
               <FileEdit className="w-3.5 h-3.5 text-red-500" />
               Output File Name
             </label>
-            <span className="text-[11px] text-slate-400">
-              Photoshop Export convention (.png)
+            <span className="text-[11px] text-slate-400 font-mono">
+              *.{outputExt}
             </span>
           </div>
 
@@ -468,7 +556,7 @@ export function ProcessingOptions({
                 type="text"
                 value={options.customOutputFilename ?? originalUploadedFilename}
                 onChange={(e) => updateOption("customOutputFilename", e.target.value)}
-                placeholder="e.g. IMG_6442.png"
+                placeholder={`e.g. IMG_6442.${outputExt}`}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 font-mono text-xs focus:outline-none focus:border-red-500 transition-colors"
               />
             </div>
@@ -478,24 +566,24 @@ export function ProcessingOptions({
                 type="button"
                 onClick={() => updateOption("customOutputFilename", originalUploadedFilename)}
                 className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-xs font-medium transition-colors"
-                title="Photoshop default: keep original base name with .png"
+                title={`Keep original base name with .${outputExt}`}
               >
-                Photoshop Default
+                Original Name (.{outputExt})
               </button>
 
               <button
                 type="button"
-                onClick={() => updateOption("customOutputFilename", generateCanonCameraFilename())}
+                onClick={() => updateOption("customOutputFilename", generateCanonCameraFilename(undefined, outputFormat))}
                 className="px-3 py-2 rounded-xl bg-red-950/40 hover:bg-red-900/50 border border-red-800/60 text-red-200 text-xs font-medium transition-colors flex items-center gap-1.5"
-                title="Generate real Canon EOS DSLR style filename (e.g. IMG_6442.png)"
+                title={`Generate real Canon EOS DSLR style filename (e.g. IMG_6442.${outputExt})`}
               >
                 <Camera className="w-3.5 h-3.5 text-red-400" />
-                Canon Style (IMG_XXXX.png)
+                Canon Style (IMG_XXXX.{outputExt})
               </button>
             </div>
           </div>
           <p className="text-[11px] text-slate-400">
-            Photoshop preserves the original base name by default without appending suffixes. You can customize the name or use Canon Style anytime.
+            Preserves the original base name or applies authentic Canon camera naming (IMG_XXXX.{outputExt}).
           </p>
         </div>
       )}

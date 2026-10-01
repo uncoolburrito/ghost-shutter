@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { createJobDirectory, cleanupJobDirectory } from "@/lib/cleanup";
 import { detectFileFormat, inspectImageFile } from "@/lib/image-validator";
 import { readExifMetadata, writeExifMetadata } from "@/lib/exiftool";
-import { detectC2PA, removeC2PA, verifyC2PAAbsent, stripPngC2paChunks } from "@/lib/c2pa-handler";
+import { detectC2PA, removeC2PA, verifyC2PAAbsent, stripPngC2paChunks, stripJpegApp11C2paMarkers } from "@/lib/c2pa-handler";
 import { buildExiftoolArgs, APP_CONFIG } from "@/lib/metadata-builder";
 import { validateOutputMetadata } from "@/lib/metadata-validator";
 import { getOutputFilename, sanitizeFilename } from "@/lib/file-naming";
@@ -37,6 +37,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 0. Resolve desired output format: default to JPEG (without quality loss), with PNG option
+    const outputFormat: "jpeg" | "png" =
+      (options.outputFormat || "jpeg").toLowerCase() === "png" ? "png" : "jpeg";
+    const isJpeg = outputFormat === "jpeg";
+    const outExt = isJpeg ? ".jpg" : ".png";
+    const outMime = isJpeg ? "image/jpeg" : "image/png";
+
     const c2paHandling = options.c2paHandling || (APP_CONFIG as any).defaultC2PAHandling || "remove";
 
     // Size limit verification
@@ -53,11 +60,10 @@ export async function POST(req: NextRequest) {
     const job = await createJobDirectory();
     jobDir = job.jobDir;
 
-    const originalName = sanitizeFilename(file.name || "image.png");
+    const originalName = sanitizeFilename(file.name || `image${outExt}`);
     const inputPath = path.join(jobDir, `orig_${originalName}`);
-    // Output is native PNG with authentic Photoshop conversion lineage
     const outputBasename = path.basename(originalName, path.extname(originalName));
-    const outputPath = path.join(jobDir, `out_${outputBasename}.png`);
+    const outputPath = path.join(jobDir, `out_${outputBasename}${outExt}`);
 
     // Ephemerally write input
     const arrayBuffer = await file.arrayBuffer();
@@ -92,46 +98,70 @@ export async function POST(req: NextRequest) {
     // 4. Single authoritative processing timestamp
     const processingDate = new Date();
 
-    // 5. Construct metadata payload (outputting PNG with Photoshop conversion lineage)
+    // 5. Construct metadata payload
     const buildResult = buildExiftoolArgs({
       width: inspection.width,
       height: inspection.height,
-      format: "PNG",
+      format: isJpeg ? "JPEG" : "PNG",
       processingDate,
       processOptions: options,
       existingMetadata,
       useTemplate: true,
     });
 
-    // 6. Normalization: Output is authentic PNG exported from Photoshop
-    // Losslessly decode and encode to pristine PNG container (guaranteeing 100% pixel integrity)
-    // while stripping foreign AI generation parameters, corrupted chunks, and C2PA container chunks.
-    if (formatInfo.format === "PNG" && c2paHandling !== "remove") {
-      await fs.copyFile(inputPath, outputPath);
+    // 6. Normalization: Zero Quality Loss guarantee
+    if (isJpeg) {
+      if (formatInfo.format === "JPEG") {
+        // Zero recompression / zero generational loss for existing JPEGs:
+        // Copy original JPEG stream directly
+        await fs.copyFile(inputPath, outputPath);
+        // Container-level cleanup of C2PA APP11 markers without re-encoding
+        if (c2paHandling === "remove") {
+          const inBuf = await fs.readFile(outputPath);
+          const { stripped, newBuffer } = stripJpegApp11C2paMarkers(inBuf);
+          if (stripped) {
+            await fs.writeFile(outputPath, newBuffer);
+          }
+        }
+      } else {
+        // Converting PNG / WebP / TIFF to JPEG at maximum possible fidelity:
+        // quality: 100, chromaSubsampling: '4:4:4' (lossless chroma, no downsampling)
+        await sharp(inputPath)
+          .jpeg({
+            quality: 100,
+            chromaSubsampling: "4:4:4",
+            force: true,
+          })
+          .toFile(outputPath);
+      }
     } else {
-      await sharp(inputPath)
-        .png({ compressionLevel: 9 })
-        .toFile(outputPath);
+      // PNG output: 100% lossless pixel compression
+      if (formatInfo.format === "PNG" && c2paHandling !== "remove") {
+        await fs.copyFile(inputPath, outputPath);
+      } else {
+        await sharp(inputPath)
+          .png({ compressionLevel: 9 })
+          .toFile(outputPath);
+      }
+
+      if (c2paHandling === "remove") {
+        const outBuf = await fs.readFile(outputPath);
+        const { stripped, newBuffer } = stripPngC2paChunks(outBuf);
+        if (stripped) {
+          await fs.writeFile(outputPath, newBuffer);
+        }
+      }
     }
 
     // 7. Write metadata
     await writeExifMetadata(outputPath, buildResult.args);
-
-    // 7b. If C2PA removal requested, ensure raw container cleanup of any trailing bytes
-    if (c2paHandling === "remove") {
-      const outBuf = await fs.readFile(outputPath);
-      const { stripped, newBuffer } = stripPngC2paChunks(outBuf);
-      if (stripped) {
-        await fs.writeFile(outputPath, newBuffer);
-      }
-    }
 
     // 8. Re-open output and validate metadata
     const { validation, diff } = await validateOutputMetadata({
       outputPath,
       expectedDimensions: { width: inspection.width, height: inspection.height },
       buildResult,
-      format: "PNG",
+      format: isJpeg ? "JPEG" : "PNG",
       processOptions: options,
       beforeMetadata: existingMetadata,
     });
@@ -176,8 +206,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 10. Generate output filename (Photoshop default or custom user specified)
-    const finalFilename = getOutputFilename(originalName, options.customOutputFilename);
+    // 10. Generate output filename (default JPEG or optional PNG)
+    const finalFilename = getOutputFilename(originalName, options.customOutputFilename, outputFormat);
 
     // Read processed output buffer
     const outputBuffer = await fs.readFile(outputPath);
@@ -193,7 +223,7 @@ export async function POST(req: NextRequest) {
     };
 
     const headers = new Headers();
-    headers.set("Content-Type", "image/png");
+    headers.set("Content-Type", outMime);
     headers.set("Content-Length", outputBuffer.length.toString());
     headers.set(
       "Content-Disposition",
