@@ -58,7 +58,7 @@ interface DownloadResultProps {
 
 export function DownloadResult({
   downloadUrl,
-  filename = "IMG_6442.png",
+  filename = "IMG_6442.jpg",
   summary,
   validation,
   diff = [],
@@ -91,22 +91,26 @@ export function DownloadResult({
 
   const finalSingleDownloadName = useMemo(() => {
     const trimmed = editableFilename.trim();
-    if (!trimmed) return filename || "IMG_6442.png";
+    if (!trimmed) return filename || "IMG_6442.jpg";
     const lower = trimmed.toLowerCase();
-    if (lower.endsWith(".png")) {
+    if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")) {
       return trimmed;
     }
-    return `${trimmed}.png`;
+    const ext = filename && filename.includes(".") ? filename.substring(filename.lastIndexOf(".")) : ".jpg";
+    return `${trimmed}${ext}`;
   }, [editableFilename, filename]);
 
   const getResolvedBatchName = (item: BatchResultItem): string => {
     const custom = batchNames[item.id]?.trim();
     if (!custom) return item.outputFilename;
     const lower = custom.toLowerCase();
-    if (lower.endsWith(".png")) {
+    if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")) {
       return custom;
     }
-    return `${custom}.png`;
+    const ext = item.outputFilename && item.outputFilename.includes(".")
+      ? item.outputFilename.substring(item.outputFilename.lastIndexOf("."))
+      : ".jpg";
+    return `${custom}${ext}`;
   };
 
   // Master Download All function (sequential downloads without ZIP)
@@ -259,14 +263,17 @@ export function DownloadResult({
                               setBatchNames((prev) => ({ ...prev, [item.id]: e.target.value }))
                             }
                             className="px-2 py-1 rounded bg-slate-950 border border-slate-700 text-slate-100 font-mono text-xs focus:outline-none focus:border-red-500 w-44 sm:w-56"
-                            placeholder="filename.png"
+                            placeholder={item.outputFilename || "filename.jpg"}
                           />
                           <button
                             type="button"
                             onClick={() =>
                               setBatchNames((prev) => ({
                                 ...prev,
-                                [item.id]: generateCanonCameraFilename(),
+                                [item.id]: generateCanonCameraFilename(
+                                  undefined,
+                                  item.outputFilename.toLowerCase().endsWith(".png") ? "png" : "jpeg"
+                                ),
                               }))
                             }
                             className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 transition-colors"
@@ -396,16 +403,23 @@ export function DownloadResult({
             type="text"
             value={editableFilename}
             onChange={(e) => setEditableFilename(e.target.value)}
-            placeholder="e.g. IMG_6442.png"
+            placeholder={filename || "e.g. IMG_6442.jpg"}
             className="flex-1 px-3.5 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 font-mono text-xs focus:outline-none focus:border-red-500 transition-colors"
           />
 
           <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
-              onClick={() => setEditableFilename(generateCanonCameraFilename())}
+              onClick={() =>
+                setEditableFilename(
+                  generateCanonCameraFilename(
+                    undefined,
+                    filename.toLowerCase().endsWith(".png") ? "png" : "jpeg"
+                  )
+                )
+              }
               className="px-3 py-2 rounded-lg bg-red-950/40 hover:bg-red-900/50 border border-red-800/60 text-red-200 text-xs font-medium transition-colors flex items-center gap-1"
-              title="Change to real Canon DSLR filename (e.g. IMG_6442.png)"
+              title={`Change to real Canon DSLR filename (e.g. IMG_6442.${filename.toLowerCase().endsWith(".png") ? "png" : "jpg"})`}
             >
               <Camera className="w-3 h-3 text-red-400" />
               Canon Style

@@ -53,7 +53,7 @@ function getLocalTimeString(d: Date = new Date()): string {
 export function ProcessingOptions({
   options,
   inspection,
-  fileName = "image.png",
+  fileName = "image.jpg",
   itemCount = 1,
   onChange,
 }: ProcessingOptionsProps) {
